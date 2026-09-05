@@ -1,0 +1,27 @@
+{
+  "users": [
+    {
+      "id": "mtofle2w-rbslqupg",
+      "name": "shashank dubey",
+      "email": "shivam12@gmail.com",
+      "password": "$2a$10$ABH7SeQmZ0wYxnlxTa2Zpe92dTRXOHQxi3Za/ax922Fo.FGIvhaja",
+      "createdAt": "2026-09-05T13:41:18.492Z"
+    },
+    {
+      "id": "mtoflq5p-6hzulitn",
+      "name": "shashank dubey",
+      "email": "shivam123@gmail.com",
+      "password": "$2a$10$EmDS1XD955kLJKEwn5Qh0unSrfE3r7MzWpAlGLMpgyLeIYPlo0zvu",
+      "createdAt": "2026-09-05T13:41:34.117Z"
+    },
+    {
+      "id": "mtoft7t1-1wpyw5dw",
+      "name": "shivam",
+      "email": "sv739901@gmail.com",
+      "password": "$2a$10$ZMKF2wFiStsJvAIoiGegp.iytaUVJSMqTkduWB/yI0Uo7nM9DC.Jy",
+      "createdAt": "2026-09-05T13:47:23.760Z"
+    }
+  ],
+  "expenses": [],
+  "budgets": []
+}
