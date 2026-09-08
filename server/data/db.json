@@ -23,5 +23,13 @@
     }
   ],
   "expenses": [],
-  "budgets": []
+  "budgets": [
+    {
+      "id": "mtrqhm87-8a96u31u",
+      "userId": "mtoq9nnj-cohltw8w",
+      "month": "2026-09",
+      "amount": 0,
+      "updatedAt": "2026-09-07T21:09:36.945Z"
+    }
+  ]
 }
