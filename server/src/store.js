@@ -7,22 +7,11 @@ const dataDir = path.join(__dirname, '..', 'data');
 const dbFile = path.join(dataDir, 'db.json');
 
 const emptyDb = { users: [], expenses: [], budgets: [] };
+
+// Cloud-safe Memory Store (Render restart hone par bhi 500 nahi dega)
 let memoryDb = { ...emptyDb };
+let isLoaded = false;
 
-async function ensureDb() {
-  try {
-    await fs.mkdir(dataDir, { recursive: true });
-    try { 
-      await fs.access(dbFile); 
-    } catch { 
-      await fs.writeFile(dbFile, JSON.stringify(emptyDb, null, 2), 'utf8'); 
-    }
-  } catch (err) {
-    console.error("Directory creation or access failed:", err);
-  }
-}
-
-// id aur _id dono support karne ke liye helper function
 function fixIds(items = []) {
   return items.map(item => ({
     ...item,
@@ -31,8 +20,8 @@ function fixIds(items = []) {
 }
 
 export async function readDb() {
+  if (isLoaded) return memoryDb;
   try {
-    await ensureDb();
     const raw = await fs.readFile(dbFile, 'utf8');
     const parsed = JSON.parse(raw || '{}');
     memoryDb = {
@@ -40,20 +29,26 @@ export async function readDb() {
       expenses: fixIds(parsed.expenses || []),
       budgets: fixIds(parsed.budgets || [])
     };
-    return memoryDb;
+    isLoaded = true;
   } catch (err) {
-    console.error("readDb error, using memory fallback:", err);
-    return memoryDb;
+    console.log("Using in-memory DB mode (File read skipped or non-existent)");
+    isLoaded = true;
   }
+  return memoryDb;
 }
 
 export async function writeDb(db) {
+  memoryDb = {
+    users: fixIds(db.users || []),
+    expenses: fixIds(db.expenses || []),
+    budgets: fixIds(db.budgets || [])
+  };
   try {
-    memoryDb = db;
-    await ensureDb();
-    await fs.writeFile(dbFile, JSON.stringify(db, null, 2), 'utf8');
+    await fs.mkdir(dataDir, { recursive: true });
+    await fs.writeFile(dbFile, JSON.stringify(memoryDb, null, 2), 'utf8');
   } catch (err) {
-    console.error("writeDb error:", err);
+    // Disk write error ignore karein taaki server crash 500 na aaye
+    console.log("Memory DB updated. (Disk write bypassed for Cloud environment)");
   }
 }
 

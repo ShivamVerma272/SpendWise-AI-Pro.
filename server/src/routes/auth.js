@@ -5,14 +5,17 @@ import { readDb, writeDb, id } from '../store.js';
 
 const r = Router();
 
+// Fallback secret added to prevent crashes when JWT_SECRET env is missing
+const JWT_SECRET = process.env.JWT_SECRET || 'spendwise_fallback_secret_key_12345';
+
 const token = (u) =>
   jwt.sign(
     {
-      id: u.id,
+      id: u.id || u._id,
       name: u.name,
       email: u.email,
     },
-    process.env.JWT_SECRET,
+    JWT_SECRET,
     {
       expiresIn: '7d',
     }
@@ -39,8 +42,10 @@ r.post('/register', async (req, res) => {
       });
     }
 
+    const userId = id();
     const u = {
-      id: id(),
+      id: userId,
+      _id: userId,
       name: String(name).trim(),
       email: normalized,
       password: await bcrypt.hash(password, 10),
@@ -55,6 +60,7 @@ r.post('/register', async (req, res) => {
       token: token(u),
       user: {
         id: u.id,
+        _id: u._id,
         name: u.name,
         email: u.email,
       },
@@ -92,7 +98,8 @@ r.post('/login', async (req, res) => {
     res.json({
       token: token(u),
       user: {
-        id: u.id,
+        id: u.id || u._id,
+        _id: u._id || u.id,
         name: u.name,
         email: u.email,
       },
