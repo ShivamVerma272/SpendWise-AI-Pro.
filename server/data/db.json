@@ -20,9 +20,42 @@
       "email": "sv739901@gmail.com",
       "password": "$2a$10$ZMKF2wFiStsJvAIoiGegp.iytaUVJSMqTkduWB/yI0Uo7nM9DC.Jy",
       "createdAt": "2026-09-05T13:47:23.760Z"
+    },
+    {
+      "id": "mua315hm-o1k6x8q8",
+      "name": "SHIVAM VERMA",
+      "email": "shivamverma2721@gmail.com",
+      "password": "$2a$10$5kStBq/f0W29nffh.nDKaOO0UNMof0.QD8WWMDzKpfi1sq6aV/.V6",
+      "createdAt": "2026-09-20T17:20:34.711Z"
+    },
+    {
+      "id": "mua33w7u-fi5db1g4",
+      "name": "shivam verma",
+      "email": "shiva112@gmail.com",
+      "password": "$2a$10$uK3FWdrImD9vkkMwAkfbFOIYoJ2mrDv2j.Ivvdxe2hrd9aZr.u9Pi",
+      "createdAt": "2026-09-20T17:22:42.719Z"
+    },
+    {
+      "id": "mua3d77c-p305dgvc",
+      "name": "shivam verma",
+      "email": "shivam342@gmail.com",
+      "password": "$2a$10$j8GBeDGpc2YXFhzLX03pOOKU7WMEH7GYWjyW1wrAvOySz2.I.5Yiq",
+      "createdAt": "2026-09-20T17:29:56.871Z"
     }
   ],
-  "expenses": [],
+  "expenses": [
+    {
+      "id": "mua34q72-nzpmlhu4",
+      "userId": "mua33w7u-fi5db1g4",
+      "title": "food",
+      "amount": 100,
+      "category": "Food",
+      "date": "2026-09-20T00:00:00.000Z",
+      "merchant": "",
+      "note": "",
+      "createdAt": "2026-09-20T17:23:21.376Z"
+    }
+  ],
   "budgets": [
     {
       "id": "mtrqhm87-8a96u31u",
@@ -30,6 +63,20 @@
       "month": "2026-09",
       "amount": 0,
       "updatedAt": "2026-09-07T21:09:36.945Z"
+    },
+    {
+      "id": "mtsknznf-g1il5ozf",
+      "userId": "mtoft7t1-1wpyw5dw",
+      "month": "2026-09",
+      "amount": 0,
+      "updatedAt": "2026-09-08T11:14:22.396Z"
+    },
+    {
+      "id": "mua344k8-nonquaxq",
+      "userId": "mua33w7u-fi5db1g4",
+      "month": "2026-09",
+      "amount": 10000,
+      "updatedAt": "2026-09-20T17:23:02.141Z"
     }
   ]
 }
