@@ -1,37 +1,437 @@
-import React,{useEffect,useMemo,useState} from "react";
-import {createRoot} from "react-dom/client";
-import {PieChart,Pie,Cell,Tooltip,Legend,ResponsiveContainer,BarChart,Bar,XAxis,YAxis} from "recharts";
-import {createWorker} from "tesseract.js";
+import React, { useEffect, useMemo, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from "recharts";
+import { createWorker } from "tesseract.js";
 import "./style.css";
 
-const API="http://localhost:5000/api";
-const CATS=["Food","Travel","Shopping","Bills","Health","Education","Entertainment","Other"];
-const money=n=>`₹${Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:0})}`;
-async function api(path,opt={}){const t=localStorage.getItem("token");const r=await fetch(API+path,{...opt,headers:{"Content-Type":"application/json",...(t?{Authorization:`Bearer ${t}`}:{})}});const d=await r.json();if(!r.ok)throw Error(d.message||"Request failed");return d}
+// Dynamic API URL: Vercel environment variable se lega, fallback me Render URL use karega
+const API = import.meta.env.VITE_API_URL || 'https://spendwise-ai-pro.onrender.com/api';
+const CATS = ["Food", "Travel", "Shopping", "Bills", "Health", "Education", "Entertainment", "Other"];
+const money = n => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
-function Auth({done}){const[mode,setMode]=useState("login"),[f,setF]=useState({name:"",email:"",password:""}),[err,setErr]=useState("");
- async function submit(e){e.preventDefault();try{const d=await api("/auth/"+(mode==="login"?"login":"register"),{method:"POST",body:JSON.stringify(f)});localStorage.setItem("token",d.token);localStorage.setItem("user",JSON.stringify(d.user));done(d.user)}catch(e){setErr(e.message)}}
- return <div className="auth"><div className="authcard"><div className="brand">◈ SpendWise <span>AI</span></div><h1>{mode==="login"?"Welcome back":"Start smarter spending"}</h1><p className="muted">An intelligent workspace for your personal finances.</p><form onSubmit={submit}>{mode==="register"&&<input required placeholder="Full name" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/>}<input required type="email" placeholder="Email" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/><input required minLength="6" type="password" placeholder="Password" value={f.password} onChange={e=>setF({...f,password:e.target.value})}/>{err&&<div className="error">{err}</div>}<button className="primary">{mode==="login"?"Login":"Create account"}</button></form><button className="textbtn" onClick={()=>{setMode(mode==="login"?"register":"login");setErr("")}}>{mode==="login"?"Need an account? Sign up":"Already registered? Login"}</button></div></div>}
+async function api(path, opt = {}) {
+  const t = localStorage.getItem("token");
+  const r = await fetch(API + path, {
+    ...opt,
+    headers: {
+      "Content-Type": "application/json",
+      ...(t ? { Authorization: `Bearer ${t}` } : {})
+    }
+  });
+  const d = await r.json();
+  if (!r.ok) throw Error(d.message || "Request failed");
+  return d;
+}
 
-function Receipt({onClose,onExtract}){const[busy,setBusy]=useState(false),[progress,setProgress]=useState(0),[msg,setMsg]=useState("");
- async function scan(file){if(!file)return;setBusy(true);try{const worker=await createWorker("eng",1,{logger:m=>m.status==="recognizing text"&&setProgress(Math.round(m.progress*100))});const {data}=await worker.recognize(file);await worker.terminate();const text=data.text;const amount=(text.match(/(?:₹|rs\.?|inr)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i)||text.match(/\b([0-9,]+\.[0-9]{2})\b/))?.[1]?.replace(/,/g,"");const date=(text.match(/\b(20\d{2}[-/]\d{1,2}[-/]\d{1,2})\b/)||[])[1];const merchant=text.split("\n").map(x=>x.trim()).filter(Boolean)[0]||"Receipt";onExtract({title:merchant.slice(0,60),amount:amount?Number(amount):"",date:date?date.replaceAll("/","-"):"",merchant,note:"Imported from receipt OCR"});setMsg("Receipt scanned. Review the fields before saving.");}catch(e){setMsg("Could not read this image. Try a clearer receipt.")}finally{setBusy(false)}}return <div className="modal"><div className="formbox"><div className="panelhead"><h2>🧾 Receipt Scanner</h2><button className="x" onClick={onClose}>×</button></div><p className="muted">OCR runs in your browser. No image is uploaded to the server.</p><label className="upload">{busy?`Scanning… ${progress}%`:"Choose receipt image"}<input hidden type="file" accept="image/*" onChange={e=>scan(e.target.files[0])}/></label>{msg&&<div className="success">{msg}</div>}<button className="ghost wide" onClick={onClose}>Close</button></div></div>}
+function Auth({ done }) {
+  const [mode, setMode] = useState("login");
+  const [f, setF] = useState({ name: "", email: "", password: "" });
+  const [err, setErr] = useState("");
 
-function ExpenseModal({initial,onClose,onSave}){const x=initial;return <div className="modal"><form className="formbox" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);onSave({title:f.get("title"),amount:Number(f.get("amount")),category:f.get("category"),date:f.get("date"),merchant:f.get("merchant"),note:f.get("note")})}}><div className="panelhead"><h2>{x?"Edit expense":"Add expense"}</h2><button type="button" className="x" onClick={onClose}>×</button></div><input required name="title" placeholder="Expense title" defaultValue={x?.title||""}/><input required name="amount" type="number" min="0" step=".01" placeholder="Amount" defaultValue={x?.amount||""}/><select name="category" defaultValue={x?.category||"Food"}>{CATS.map(c=><option key={c}>{c}</option>)}</select><input name="date" type="date" required defaultValue={x?new Date(x.date).toISOString().slice(0,10):new Date().toISOString().slice(0,10)}/><input name="merchant" placeholder="Merchant (optional)" defaultValue={x?.merchant||""}/><textarea name="note" placeholder="Note (optional)" defaultValue={x?.note||""}/><div className="actions"><button type="button" className="ghost" onClick={onClose}>Cancel</button><button className="primary">Save expense</button></div></form></div>}
+  async function submit(e) {
+    e.preventDefault();
+    try {
+      const d = await api("/auth/" + (mode === "login" ? "login" : "register"), {
+        method: "POST",
+        body: JSON.stringify(f)
+      });
+      localStorage.setItem("token", d.token);
+      localStorage.setItem("user", JSON.stringify(d.user));
+      done(d.user);
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
 
-function Dashboard({user,logout}){const[expenses,setExpenses]=useState([]),[ins,setIns]=useState(null),[budget,setBudget]=useState(""),[search,setSearch]=useState(""),[cat,setCat]=useState("All"),[modal,setModal]=useState(null),[tab,setTab]=useState("Overview"),[toast,setToast]=useState("");const month=new Date().toISOString().slice(0,7);
- async function load(){try{setExpenses(await api(`/expenses?month=${month}&category=${cat}&search=${encodeURIComponent(search)}`));setIns(await api(`/insights?month=${month}`));const b=await api("/budgets/"+month);setBudget(b?.amount||"")}catch(e){setToast(e.message)}}useEffect(()=>{load()},[cat]);useEffect(()=>{const id=setTimeout(load,250);return()=>clearTimeout(id)},[search]);
- const total=expenses.reduce((s,e)=>s+e.amount,0), data=useMemo(()=>CATS.map(c=>({name:c,value:expenses.filter(e=>e.category===c).reduce((s,e)=>s+e.amount,0)})).filter(x=>x.value),[expenses]), daily=useMemo(()=>{const d={};expenses.forEach(e=>{const k=new Date(e.date).toLocaleDateString("en-IN",{day:"2-digit",month:"2-digit"});d[k]=(d[k]||0)+e.amount});return Object.entries(d).slice(-10).map(([date,amount])=>({date,amount}))},[expenses]);
- async function save(v){try{if(modal?.expense)await api("/expenses/"+modal.expense._id,{method:"PUT",body:JSON.stringify(v)});else await api("/expenses",{method:"POST",body:JSON.stringify(v)});setModal(null);load();setToast("Expense saved")}catch(e){setToast(e.message)}}
- async function remove(id){if(confirm("Delete this expense?")){await api("/expenses/"+id,{method:"DELETE"});load()}}
- async function budgetSave(){await api("/budgets/"+month,{method:"PUT",body:JSON.stringify({amount:Number(budget)})});setToast("Budget updated");load()}
- function csv(){const head="Title,Amount,Category,Date,Merchant,Note\n";const body=expenses.map(e=>[e.title,e.amount,e.category,new Date(e.date).toISOString().slice(0,10),e.merchant||"",e.note||""].map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([head+body],{type:"text/csv"}));a.download=`spendwise-${month}.csv`;a.click()}
- return <><header><div className="brand">◈ SpendWise <span>AI</span></div><nav>{["Overview","Expenses","AI Insights"].map(t=><button className={tab===t?"active":""} onClick={()=>setTab(t)} key={t}>{t}</button>)}</nav><div className="user"><span>{user.name}</span><button className="ghost" onClick={logout}>Logout</button></div></header><main><div className="hero"><div><div className="eyebrow">SEPTEMBER 2026 • PERSONAL FINANCE</div><h1>Good money decisions start with visibility.</h1><p className="muted">Track every rupee and let AI turn your data into useful actions.</p></div><div className="heroBtns"><button className="ghost" onClick={()=>setModal("receipt")}>🧾 Scan receipt</button><button className="primary" onClick={()=>setModal("add")}>＋ Add expense</button></div></div>
- {toast&&<div className="toast" onClick={()=>setToast("")}>{toast}</div>}
- {tab==="Overview"&&<><section className="cards"><div className="card"><span>Spent this month</span><b>{money(total)}</b></div><div className="card"><span>Transactions</span><b>{expenses.length}</b></div><div className="card"><span>Budget</span><b>{money(budget)}</b></div><div className="card"><span>Remaining</span><b>{money(Math.max(Number(budget||0)-total,0))}</b></div></section><div className="grid"><section className="panel"><h2>Category breakdown</h2>{data.length?<ResponsiveContainer width="100%" height={280}><PieChart><Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} label>{data.map((_,i)=><Cell key={i}/>)}</Pie><Tooltip formatter={v=>money(v)}/><Legend/></PieChart></ResponsiveContainer>:<div className="empty">Add expenses to populate analytics.</div>}</section><section className="panel"><h2>Spending trend</h2>{daily.length?<ResponsiveContainer width="100%" height={280}><BarChart data={daily}><XAxis dataKey="date"/><YAxis/><Tooltip formatter={v=>money(v)}/><Bar dataKey="amount" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer>:<div className="empty">Your daily trend will appear here.</div>}</section></div></>}
- {tab==="AI Insights"&&<section className="panel large"><div className="aihead"><div><span className="pill">✦ {ins?.provider==="gemini"?"GEMINI AI":"SMART FALLBACK"}</span><h2>AI financial briefing</h2><p>{ins?.summary}</p></div></div><div className="insgrid"><div><h3>Recommendations</h3>{(ins?.tips||[]).map((x,i)=><div className="tip" key={i}>💡 {x}</div>)}</div><div><h3>Watch-outs</h3>{(ins?.risks?.length?ins.risks:["No major risks detected from the tracked data."]).map((x,i)=><div className="tip" key={i}>⚠️ {x}</div>)}<h3>Action plan</h3>{(ins?.plan||["Set a budget and review your top category weekly."]).map((x,i)=><div className="tip" key={i}>✓ {x}</div>)}</div></div></section>}
- {tab==="Expenses"&&<section className="panel"><div className="panelhead"><h2>Expenses</h2><div className="filters"><input placeholder="Search…" value={search} onChange={e=>setSearch(e.target.value)}/><select value={cat} onChange={e=>setCat(e.target.value)}><option>All</option>{CATS.map(c=><option key={c}>{c}</option>)}</select><button className="ghost" onClick={csv}>Export CSV</button></div></div>{expenses.length?<div className="table">{expenses.map(e=><div className="tr" key={e._id}><div><b>{e.title}</b><small>{e.merchant||e.category} • {new Date(e.date).toLocaleDateString("en-IN")}</small></div><strong>{money(e.amount)}</strong><div><button className="mini" onClick={()=>setModal({expense:e})}>Edit</button><button className="mini danger" onClick={()=>remove(e._id)}>Delete</button></div></div>)}</div>:<div className="empty">No matching expenses.</div>}</section>}
- <section className="panel budgetPanel"><div><h2>Monthly budget</h2><p className="muted">Keep spending intentional.</p></div><div className="budgetCtl"><input type="number" min="0" placeholder="Budget amount" value={budget} onChange={e=>setBudget(e.target.value)}/><button className="primary" onClick={budgetSave}>Save budget</button></div></section>
- </main>{modal==="receipt"&&<Receipt onClose={()=>setModal(null)} onExtract={v=>{setModal({receipt:v})}}/>}{modal?.receipt&&<ExpenseModal initial={modal.receipt} onClose={()=>setModal(null)} onSave={save}/>} {(modal==="add"||modal?.expense)&&<ExpenseModal initial={modal?.expense} onClose={()=>setModal(null)} onSave={save}/>}</>}
+  return (
+    <div className="auth">
+      <div className="authcard">
+        <div className="brand">◈ SpendWise <span>AI</span></div>
+        <h1>{mode === "login" ? "Welcome back" : "Start smarter spending"}</h1>
+        <p className="muted">An intelligent workspace for your personal finances.</p>
+        <form onSubmit={submit}>
+          {mode === "register" && (
+            <input
+              required
+              placeholder="Full name"
+              value={f.name}
+              onChange={e => setF({ ...f, name: e.target.value })}
+            />
+          )}
+          <input
+            required
+            type="email"
+            placeholder="Email"
+            value={f.email}
+            onChange={e => setF({ ...f, email: e.target.value })}
+          />
+          <input
+            required
+            minLength="6"
+            type="password"
+            placeholder="Password"
+            value={f.password}
+            onChange={e => setF({ ...f, password: e.target.value })}
+          />
+          {err && <div className="error">{err}</div>}
+          <button className="primary">{mode === "login" ? "Login" : "Create account"}</button>
+        </form>
+        <button
+          className="textbtn"
+          onClick={() => {
+            setMode(mode === "login" ? "register" : "login");
+            setErr("");
+          }}
+        >
+          {mode === "login" ? "Need an account? Sign up" : "Already registered? Login"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
-function App(){const[u,setU]=useState(()=>JSON.parse(localStorage.getItem("user")||"null"));if(!u)return <Auth done={setU}/>;return <Dashboard user={u} logout={()=>{localStorage.clear();setU(null)}}/>}
-createRoot(document.getElementById("root")).render(<App/>);
+function Receipt({ onClose, onExtract }) {
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [msg, setMsg] = useState("");
+
+  async function scan(file) {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const worker = await createWorker("eng", 1, {
+        logger: m => m.status === "recognizing text" && setProgress(Math.round(m.progress * 100))
+      });
+      const { data } = await worker.recognize(file);
+      await worker.terminate();
+      const text = data.text;
+      const amount = (
+        text.match(/(?:₹|rs\.?|inr)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i) ||
+        text.match(/\b([0-9,]+\.[0-9]{2})\b/)
+      )?.[1]?.replace(/,/g, "");
+      const date = (text.match(/\b(20\d{2}[-/]\d{1,2}[-/]\d{1,2})\b/) || [])[1];
+      const merchant = text.split("\n").map(x => x.trim()).filter(Boolean)[0] || "Receipt";
+      
+      onExtract({
+        title: merchant.slice(0, 60),
+        amount: amount ? Number(amount) : "",
+        date: date ? date.replaceAll("/", "-") : "",
+        merchant,
+        note: "Imported from receipt OCR"
+      });
+      setMsg("Receipt scanned. Review the fields before saving.");
+    } catch (e) {
+      setMsg("Could not read this image. Try a clearer receipt.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal">
+      <div className="formbox">
+        <div className="panelhead">
+          <h2>🧾 Receipt Scanner</h2>
+          <button className="x" onClick={onClose}>×</button>
+        </div>
+        <p className="muted">OCR runs in your browser. No image is uploaded to the server.</p>
+        <label className="upload">
+          {busy ? `Scanning… ${progress}%` : "Choose receipt image"}
+          <input hidden type="file" accept="image/*" onChange={e => scan(e.target.files[0])} />
+        </label>
+        {msg && <div className="success">{msg}</div>}
+        <button className="ghost wide" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+function ExpenseModal({ initial, onClose, onSave }) {
+  const x = initial;
+  return (
+    <div className="modal">
+      <form
+        className="formbox"
+        onSubmit={e => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          onSave({
+            title: f.get("title"),
+            amount: Number(f.get("amount")),
+            category: f.get("category"),
+            date: f.get("date"),
+            merchant: f.get("merchant"),
+            note: f.get("note")
+          });
+        }}
+      >
+        <div className="panelhead">
+          <h2>{x ? "Edit expense" : "Add expense"}</h2>
+          <button type="button" className="x" onClick={onClose}>×</button>
+        </div>
+        <input required name="title" placeholder="Expense title" defaultValue={x?.title || ""} />
+        <input required name="amount" type="number" min="0" step=".01" placeholder="Amount" defaultValue={x?.amount || ""} />
+        <select name="category" defaultValue={x?.category || "Food"}>
+          {CATS.map(c => <option key={c}>{c}</option>)}
+        </select>
+        <input
+          name="date"
+          type="date"
+          required
+          defaultValue={x ? new Date(x.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)}
+        />
+        <input name="merchant" placeholder="Merchant (optional)" defaultValue={x?.merchant || ""} />
+        <textarea name="note" placeholder="Note (optional)" defaultValue={x?.note || ""} />
+        <div className="actions">
+          <button type="button" className="ghost" onClick={onClose}>Cancel</button>
+          <button className="primary">Save expense</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Dashboard({ user, logout }) {
+  const [expenses, setExpenses] = useState([]);
+  const [ins, setIns] = useState(null);
+  const [budget, setBudget] = useState("");
+  const [search, setSearch] = useState("");
+  const [cat, setCat] = useState("All");
+  const [modal, setModal] = useState(null);
+  const [tab, setTab] = useState("Overview");
+  const [toast, setToast] = useState("");
+  const month = new Date().toISOString().slice(0, 7);
+
+  async function load() {
+    try {
+      setExpenses(await api(`/expenses?month=${month}&category=${cat}&search=${encodeURIComponent(search)}`));
+      setIns(await api(`/insights?month=${month}`));
+      const b = await api("/budgets/" + month);
+      setBudget(b?.amount || "");
+    } catch (e) {
+      setToast(e.message);
+    }
+  }
+
+  useEffect(() => { load(); }, [cat]);
+  useEffect(() => {
+    const id = setTimeout(load, 250);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const data = useMemo(
+    () => CATS.map(c => ({ name: c, value: expenses.filter(e => e.category === c).reduce((s, e) => s + e.amount, 0) })).filter(x => x.value),
+    [expenses]
+  );
+  const daily = useMemo(() => {
+    const d = {};
+    expenses.forEach(e => {
+      const k = new Date(e.date).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit" });
+      d[k] = (d[k] || 0) + e.amount;
+    });
+    return Object.entries(d).slice(-10).map(([date, amount]) => ({ date, amount }));
+  }, [expenses]);
+
+  async function save(v) {
+    try {
+      if (modal?.expense) await api("/expenses/" + modal.expense._id, { method: "PUT", body: JSON.stringify(v) });
+      else await api("/expenses", { method: "POST", body: JSON.stringify(v) });
+      setModal(null);
+      load();
+      setToast("Expense saved");
+    } catch (e) {
+      setToast(e.message);
+    }
+  }
+
+  async function remove(id) {
+    if (confirm("Delete this expense?")) {
+      await api("/expenses/" + id, { method: "DELETE" });
+      load();
+    }
+  }
+
+  async function budgetSave() {
+    await api("/budgets/" + month, { method: "PUT", body: JSON.stringify({ amount: Number(budget) }) });
+    setToast("Budget updated");
+    load();
+  }
+
+  function csv() {
+    const head = "Title,Amount,Category,Date,Merchant,Note\n";
+    const body = expenses
+      .map(e =>
+        [e.title, e.amount, e.category, new Date(e.date).toISOString().slice(0, 10), e.merchant || "", e.note || ""]
+          .map(v => `"${String(v).replaceAll('"', '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([head + body], { type: "text/csv" }));
+    a.download = `spendwise-${month}.csv`;
+    a.click();
+  }
+
+  return (
+    <>
+      <header>
+        <div className="brand">◈ SpendWise <span>AI</span></div>
+        <nav>
+          {["Overview", "Expenses", "AI Insights"].map(t => (
+            <button className={tab === t ? "active" : ""} onClick={() => setTab(t)} key={t}>{t}</button>
+          ))}
+        </nav>
+        <div className="user">
+          <span>{user.name}</span>
+          <button className="ghost" onClick={logout}>Logout</button>
+        </div>
+      </header>
+      <main>
+        <div className="hero">
+          <div>
+            <div className="eyebrow">SEPTEMBER 2026 • PERSONAL FINANCE</div>
+            <h1>Good money decisions start with visibility.</h1>
+            <p className="muted">Track every rupee and let AI turn your data into useful actions.</p>
+          </div>
+          <div className="heroBtns">
+            <button className="ghost" onClick={() => setModal("receipt")}>🧾 Scan receipt</button>
+            <button className="primary" onClick={() => setModal("add")}>＋ Add expense</button>
+          </div>
+        </div>
+
+        {toast && <div className="toast" onClick={() => setToast("")}>{toast}</div>}
+
+        {tab === "Overview" && (
+          <>
+            <section className="cards">
+              <div className="card"><span>Spent this month</span><b>{money(total)}</b></div>
+              <div className="card"><span>Transactions</span><b>{expenses.length}</b></div>
+              <div className="card"><span>Budget</span><b>{money(budget)}</b></div>
+              <div className="card"><span>Remaining</span><b>{money(Math.max(Number(budget || 0) - total, 0))}</b></div>
+            </section>
+            <div className="grid">
+              <section className="panel">
+                <h2>Category breakdown</h2>
+                {data.length ? (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95} label>
+                        {data.map((_, i) => <Cell key={i} />)}
+                      </Pie>
+                      <Tooltip formatter={v => money(v)} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="empty">Add expenses to populate analytics.</div>
+                )}
+              </section>
+              <section className="panel">
+                <h2>Spending trend</h2>
+                {daily.length ? (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={daily}>
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip formatter={v => money(v)} />
+                      <Bar dataKey="amount" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="empty">Your daily trend will appear here.</div>
+                )}
+              </section>
+            </div>
+          </>
+        )}
+
+        {tab === "AI Insights" && (
+          <section className="panel large">
+            <div className="aihead">
+              <div>
+                <span className="pill">✦ {ins?.provider === "gemini" ? "GEMINI AI" : "SMART FALLBACK"}</span>
+                <h2>AI financial briefing</h2>
+                <p>{ins?.summary}</p>
+              </div>
+            </div>
+            <div className="insgrid">
+              <div>
+                <h3>Recommendations</h3>
+                {(ins?.tips || []).map((x, i) => <div className="tip" key={i}>💡 {x}</div>)}
+              </div>
+              <div>
+                <h3>Watch-outs</h3>
+                {(ins?.risks?.length ? ins.risks : ["No major risks detected from the tracked data."]).map((x, i) => (
+                  <div className="tip" key={i}>⚠️ {x}</div>
+                ))}
+                <h3>Action plan</h3>
+                {(ins?.plan || ["Set a budget and review your top category weekly."]).map((x, i) => (
+                  <div className="tip" key={i}>✓ {x}</div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {tab === "Expenses" && (
+          <section className="panel">
+            <div className="panelhead">
+              <h2>Expenses</h2>
+              <div className="filters">
+                <input placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
+                <select value={cat} onChange={e => setCat(e.target.value)}>
+                  <option>All</option>
+                  {CATS.map(c => <option key={c}>{c}</option>)}
+                </select>
+                <button className="ghost" onClick={csv}>Export CSV</button>
+              </div>
+            </div>
+            {expenses.length ? (
+              <div className="table">
+                {expenses.map(e => (
+                  <div className="tr" key={e._id}>
+                    <div>
+                      <b>{e.title}</b>
+                      <small>{e.merchant || e.category} • {new Date(e.date).toLocaleDateString("en-IN")}</small>
+                    </div>
+                    <strong>{money(e.amount)}</strong>
+                    <div>
+                      <button className="mini" onClick={() => setModal({ expense: e })}>Edit</button>
+                      <button className="mini danger" onClick={() => remove(e._id)}>Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty">No matching expenses.</div>
+            )}
+          </section>
+        )}
+
+        <section className="panel budgetPanel">
+          <div>
+            <h2>Monthly budget</h2>
+            <p className="muted">Keep spending intentional.</p>
+          </div>
+          <div className="budgetCtl">
+            <input type="number" min="0" placeholder="Budget amount" value={budget} onChange={e => setBudget(e.target.value)} />
+            <button className="primary" onClick={budgetSave}>Save budget</button>
+          </div>
+        </section>
+      </main>
+
+      {modal === "receipt" && <Receipt onClose={() => setModal(null)} onExtract={v => setModal({ receipt: v })} />}
+      {modal?.receipt && <ExpenseModal initial={modal.receipt} onClose={() => setModal(null)} onSave={save} />}
+      {(modal === "add" || modal?.expense) && <ExpenseModal initial={modal?.expense} onClose={() => setModal(null)} onSave={save} />}
+    </>
+  );
+}
+
+function App() {
+  const [u, setU] = useState(() => JSON.parse(localStorage.getItem("user") || "null"));
+  if (!u) return <Auth done={setU} />;
+  return <Dashboard user={u} logout={() => { localStorage.clear(); setU(null); }} />;
+}
+
+createRoot(document.getElementById("root")).render(<App />);
